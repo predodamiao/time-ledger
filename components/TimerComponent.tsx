@@ -30,20 +30,35 @@ export default function TimerComponent({
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
 
-    if (isActive) {
-      if (!startTime) {
-        setStartTime(Date.now())
-      }
+    if (isActive && startTime) {
       interval = setInterval(() => {
-        setCurrentTime(prev => prev + 1)
+        // Calculate elapsed time based on actual timestamp
+        const now = Date.now()
+        const elapsed = Math.floor((now - startTime) / 1000)
+        setCurrentTime(elapsed)
       }, 1000)
     } else {
-      if (interval) clearInterval(interval)
+      setCurrentTime(0)
     }
 
     return () => {
       if (interval) clearInterval(interval)
     }
+  }, [isActive, startTime])
+
+  // Handle visibility change to recalculate time when tab becomes active
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isActive && startTime) {
+        // Recalculate time when tab becomes visible
+        const now = Date.now()
+        const elapsed = Math.floor((now - startTime) / 1000)
+        setCurrentTime(elapsed)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [isActive, startTime])
 
   const formatTime = (seconds: number) => {
@@ -60,8 +75,10 @@ export default function TimerComponent({
   const handleStart = async () => {
     if (isActive || !user) return
 
+    const now = Date.now()
     setIsActive(true)
-    setStartTime(Date.now())
+    setStartTime(now)
+    setCurrentTime(0)
     onTimerStart()
 
     try {
@@ -79,9 +96,12 @@ export default function TimerComponent({
   }
 
   const handleStop = async () => {
-    if (!isActive || !user) return
+    if (!isActive || !user || !startTime) return
 
-    const totalDuration = (timer.duration || 0) + currentTime
+    // Calculate final elapsed time based on actual timestamp
+    const now = Date.now()
+    const elapsed = Math.floor((now - startTime) / 1000)
+    const totalDuration = (timer.duration || 0) + elapsed
 
     setIsActive(false)
     onTimerStop()
